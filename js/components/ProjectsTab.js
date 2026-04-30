@@ -1,6 +1,14 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ProjectsTab.js — "PROJECTS" tab
+// Shows standalone tasks (not tied to any project) and all projects, each with
+// their own task list and a completion progress bar.
+// ─────────────────────────────────────────────────────────────────────────────
 function ProjectsTab({state,setState}){
-  const[modal,setModal]=useState(null);
+  const[modal,setModal]=useState(null); // controls which modal dialog is open
 
+  // ── Task CRUD ────────────────────────────────────────────────────────────────
+  // Saves a new or edited task. pid=null means standalone; otherwise it belongs
+  // to the project with that id. Triggers a reschedule after every save.
   const saveTask=(pid,task,editId)=>{
     setState(prev=>{
       const s=JSON.parse(JSON.stringify(prev));
@@ -23,6 +31,7 @@ function ProjectsTab({state,setState}){
     s.schedule=autoSchedule(s); return s;
   });
 
+  // ── Project CRUD ─────────────────────────────────────────────────────────────
   const saveProj=(proj,editId)=>{
     setState(prev=>{
       const s=JSON.parse(JSON.stringify(prev));
@@ -38,8 +47,11 @@ function ProjectsTab({state,setState}){
     s.schedule=autoSchedule(s); return s;
   });
 
+  // Returns 0–100 completion percentage for a project
   const pct=proj=>proj.tasks.length?Math.round(proj.tasks.filter(t=>t.done).length/proj.tasks.length*100):0;
 
+  // ── TRow ─────────────────────────────────────────────────────────────────────
+  // Single task row — left border colour reflects urgency level
   const TRow=({task,pid})=>{
     const col=UC[task.urgency];
     return(
@@ -61,6 +73,8 @@ function ProjectsTab({state,setState}){
 
   return(
     <div style={{padding:14,overflowY:"auto",height:"100%"}}>
+
+      {/* ── Standalone tasks section ── */}
       <div style={{marginBottom:18}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>▸ STANDALONE TASKS</span>
@@ -70,6 +84,7 @@ function ProjectsTab({state,setState}){
         {state.standaloneTasks.map(t=><TRow key={t.id} task={t} pid={null}/>)}
       </div>
 
+      {/* ── Projects section ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>▸ PROJECTS</span>
         <Btn onClick={()=>setModal({type:"addProject"})} bg={C.red} tc={C.yellow} sx={{fontSize:9,padding:"5px 9px"}}>+ NEW PROJECT</Btn>
@@ -79,6 +94,7 @@ function ProjectsTab({state,setState}){
         const p=pct(proj);
         return(
           <div key={proj.id} style={{marginBottom:16,border:`2px solid ${proj.color}22`,background:C.bg2}}>
+            {/* Project header bar */}
             <div style={{background:proj.color,padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>{proj.name}</span>
@@ -90,7 +106,10 @@ function ProjectsTab({state,setState}){
                 <Btn onClick={()=>delProj(proj.id)} bg="rgba(0,0,0,.35)" tc={C.yellow} sx={{fontSize:8,padding:"2px 6px"}}>DEL</Btn>
               </div>
             </div>
+
+            {/* Completion progress bar */}
             <div style={{height:4,background:C.dimmer}}><div style={{height:"100%",width:`${p}%`,background:C.green,transition:"width .3s"}}/></div>
+
             <div style={{padding:8}}>
               {proj.tasks.map(t=><TRow key={t.id} task={t} pid={proj.id}/>)}
               <Btn onClick={()=>setModal({type:"addTask",pid:proj.id})} bg={C.bg3} tc={C.blue} sx={{fontSize:8,padding:"5px 9px",marginTop:6,border:`1px solid ${C.blue}`}}>+ ADD TASK</Btn>
@@ -99,10 +118,12 @@ function ProjectsTab({state,setState}){
         );
       })}
 
+      {/* Auto-schedule button — re-runs the scheduler for the current week */}
       <div style={{marginTop:20,textAlign:"center"}}>
         <Btn onClick={()=>{setState(prev=>({...prev,schedule:autoSchedule(prev)}));playBeep("notify");}} bg={C.orange} tc={C.bg} sx={{fontSize:11,padding:"10px 22px"}}>⚡ AUTO-SCHEDULE WEEK</Btn>
       </div>
 
+      {/* ── Modals ── */}
       {modal?.type==="addTask"&&<Modal title="+ NEW TASK" onClose={()=>setModal(null)}><TaskForm onSave={t=>saveTask(modal.pid,t,null)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.type==="editTask"&&<Modal title="EDIT TASK" onClose={()=>setModal(null)}><TaskForm init={modal.task} onSave={t=>saveTask(modal.pid,t,modal.task.id)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.type==="addProject"&&<Modal title="+ NEW PROJECT" onClose={()=>setModal(null)}><ProjectForm onSave={p=>saveProj(p,null)} onClose={()=>setModal(null)}/></Modal>}

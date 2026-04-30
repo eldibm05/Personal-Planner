@@ -1,27 +1,39 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// CalendarTab.js — "CALENDAR" tab
+// Supports four views: 1D (single day), 3D (three days), 1W (seven days), and
+// 1M (month grid). Each view is driven by `state.weekAnchor` (a YYYY-MM-DD
+// string) which the nav arrows shift forward/backward by 1, 3, 7, or 1 month.
+// ─────────────────────────────────────────────────────────────────────────────
 function CalendarTab({state,setState}){
   const[modal,setModal]=useState(null);
-  const[capEdit,setCapEdit]=useState(null);
-  const[calView,setCalView]=useState("1W");
+  const[capEdit,setCapEdit]=useState(null); // which day header is showing the cap editor
+  const[calView,setCalView]=useState("1W"); // "1D" | "3D" | "1W" | "1M"
   const td=today();
 
+  // Compute the list of dates to display based on the current view.
+  // 1M builds every calendar day in the anchor's month.
   const displayDays=calView==="1D"?[state.weekAnchor]
     :calView==="3D"?[state.weekAnchor,addDays(state.weekAnchor,1),addDays(state.weekAnchor,2)]
     :calView==="1W"?weekDates(state.weekAnchor)
     :(()=>{const[y,m]=state.weekAnchor.split("-").map(Number);const cnt=new Date(y,m,0).getDate();return Array.from({length:cnt},(_,i)=>{const d=new Date(y,m-1,i+1);return d.toISOString().slice(0,10);});})();
 
+  // Shift the weekAnchor by one "page" in the given direction (+1 forward, -1 back).
   const navigate=dir=>{
     if(calView==="1M"){setState(p=>{const[y,m]=p.weekAnchor.split("-").map(Number);const nd=new Date(y,m-1+dir,1);return{...p,weekAnchor:nd.toISOString().slice(0,10)};});}
     else{const step=calView==="1D"?1:calView==="3D"?3:7;setState(p=>({...p,weekAnchor:addDays(p.weekAnchor,dir*step)}));}
   };
 
+  // Human-readable label shown in the nav bar (e.g. "MON 28 APR" or "APR 2026")
   const rangeLabel=calView==="1D"?`${dayName(state.weekAnchor)} ${fmtDate(state.weekAnchor)}`
     :calView==="1M"?(()=>{const[y,m]=state.weekAnchor.split("-").map(Number);return["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][m-1]+" "+y;})()
     :`${fmtDate(displayDays[0])} – ${fmtDate(displayDays[displayDays.length-1])}`;
 
+  // Flatten all tasks into a lookup map so DayCol can resolve taskId → task
   const taskMap={};
   state.standaloneTasks.forEach(t=>{taskMap[t.id]=t;});
   state.projects.forEach(p=>p.tasks.forEach(t=>{taskMap[t.id]=t;}));
 
+  // Mark a day as "perfect" (all items done) in completionLog and play a chime
   const checkPerfect=(s,day)=>{
     const all=[...s.events.filter(e=>e.date===day),...s.schedule.filter(x=>x.date===day)];
     const perfect=all.length>0&&all.every(i=>i.done);
@@ -29,6 +41,8 @@ function CalendarTab({state,setState}){
     if(perfect)playBeep("notify");
   };
 
+  // Toggle done state for a calendar item. For non-recurring scheduled tasks,
+  // also propagates the done flag back to the source task record.
   const toggle=(type,id,day)=>{
     setState(prev=>{
       const s=JSON.parse(JSON.stringify(prev));
@@ -47,6 +61,8 @@ function CalendarTab({state,setState}){
     }); playBeep("done");
   };
 
+  // Add or update a calendar appointment (event). Triggers a reschedule so the
+  // scheduler can fill any gap left by a changed event.
   const saveEvt=(data,editId)=>{
     setState(prev=>{
       const s=JSON.parse(JSON.stringify(prev));
@@ -62,13 +78,17 @@ function CalendarTab({state,setState}){
     setModal(null);
   };
 
+  // Persist a per-day hour cap override (or remove it if hrs is falsy)
   const setDayCap=(day,hrs)=>{
     setState(prev=>{const s=JSON.parse(JSON.stringify(prev));if(!hrs)delete s.settings.dayOverrides[day];else s.settings.dayOverrides[day]=hrs;s.schedule=autoSchedule(s);return s;});
     setCapEdit(null);
   };
 
+  // Current perfect-day streak (recomputed on every render — cheap)
   const streak=(()=>{let c=0,ch=addDays(td,-1);while(state.completionLog[ch]?.perfect){c++;ch=addDays(ch,-1);}if(state.completionLog[td]?.perfect)c++;return c;})();
 
+  // Schedule browser notifications for today's items: 5-min warning then "NOW".
+  // Timers are cleared on unmount or when schedule/events change.
   useEffect(()=>{
     if(!("Notification"in window))return;
     if(Notification.permission==="default")Notification.requestPermission();
@@ -93,11 +113,17 @@ function CalendarTab({state,setState}){
     return()=>timers.forEach(clearTimeout);
   },[state.schedule,state.events]);
 
+  // Convert an absolute minute-of-day to a CSS top offset in the scrollable grid.
+  // CAL_S is the grid's start hour; HOUR_H is the pixel height of one hour row.
   const minToY=m=>((m-CAL_S*60)/60)*HOUR_H;
 
+  // ── DayCol ──────────────────────────────────────────────────────────────────
+  // Renders one vertical column (events + scheduled tasks) for a single day.
+  // Font and checkbox sizes scale with the active view so 1D is most readable.
   const DayCol=({day,calView})=>{
     const evts=state.events.filter(e=>e.date===day);
     const sched=state.schedule.filter(s=>s.date===day);
+    // Scale typography and spacing based on how many columns are visible
     const titleSz=calView==="1D"?17:calView==="3D"?13:8;
     const timeSz =calView==="1D"?13:calView==="3D"?10:7;
     const chkDim =calView==="1D"?22:calView==="3D"?18:11;
@@ -106,7 +132,9 @@ function CalendarTab({state,setState}){
     const lh     =calView==="1D"?2:calView==="3D"?1.9:1.6;
     return(
       <div style={{flex:1,minWidth:0,borderLeft:`1px solid ${C.borderDim}`,position:"relative"}}>
+        {/* Background hour-separator lines */}
         {HOURS.map(h=><div key={h} style={{position:"absolute",top:(h-CAL_S)*HOUR_H,left:0,right:0,height:HOUR_H,borderBottom:`1px solid ${C.dimmer}`}}/>)}
+        {/* Calendar appointments — yellow tint, click to edit */}
         {evts.map(evt=>{
           const top=minToY(t24Min(evt.startTime));
           const ht=Math.max(chkDim+8,(evt.duration/60)*HOUR_H);
@@ -124,6 +152,7 @@ function CalendarTab({state,setState}){
             </div>
           );
         })}
+        {/* Auto-scheduled task blocks — colour matches urgency level */}
         {sched.map(sc=>{
           const task=taskMap[sc.taskId]; if(!task)return null;
           const col=UC[task.urgency];
@@ -149,6 +178,8 @@ function CalendarTab({state,setState}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+
+      {/* ── Navigation bar: prev/next arrows + range label + streak ── */}
       <div style={{padding:"7px 14px",borderBottom:`2px solid ${C.blue}`,background:C.bg2,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <Btn onClick={()=>navigate(-1)} bg={C.blueD} sx={{fontSize:13,padding:"5px 10px"}}>◀</Btn>
         <div style={{textAlign:"center"}}>
@@ -158,6 +189,7 @@ function CalendarTab({state,setState}){
         <Btn onClick={()=>navigate(1)} bg={C.blueD} sx={{fontSize:13,padding:"5px 10px"}}>▶</Btn>
       </div>
 
+      {/* ── View switcher (1D / 3D / 1W / 1M) + action buttons ── */}
       <div style={{padding:"5px 12px",borderBottom:`1px solid ${C.borderDim}`,background:C.bg2,flexShrink:0,display:"flex",gap:8,alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",gap:4}}>
           {["1D","3D","1W","1M"].map(v=>(
@@ -170,8 +202,10 @@ function CalendarTab({state,setState}){
         </div>
       </div>
 
+      {/* ── Month grid (1M view) ── */}
       {calView==="1M"?(
         <div style={{flex:1,overflowY:"auto",padding:8}}>
+          {/* Day-of-week headers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
             {["SUN","MON","TUE","WED","THU","FRI","SAT"].map(d=>(
               <div key={d} style={{...PX,fontSize:8,color:C.blue,textAlign:"center",padding:"4px 0"}}>{d}</div>
@@ -180,6 +214,7 @@ function CalendarTab({state,setState}){
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
             {(()=>{
               const[y,m]=state.weekAnchor.split("-").map(Number);
+              // Pad the start of the grid with empty cells so day 1 falls on the right weekday
               const firstDow=new Date(y,m-1,1).getDay();
               const cells=Array(firstDow).fill(null).concat(displayDays);
               while(cells.length%7!==0)cells.push(null);
@@ -191,12 +226,14 @@ function CalendarTab({state,setState}){
                 const total=evts.length+sched.length;
                 const done=evts.filter(e=>e.done).length+sched.filter(s=>s.done).length;
                 const perfect=state.completionLog[day]?.perfect;
+                // Clicking a month cell drills down into 1D view for that date
                 return(
                   <div key={day} onClick={()=>{setState(p=>({...p,weekAnchor:day}));setCalView("1D");}}
                     style={{background:isToday?`${C.yellow}22`:C.bg2,border:`1px solid ${isToday?C.yellow:C.borderDim}`,minHeight:76,padding:"5px 6px",cursor:"pointer"}}>
                     <div style={{...PX,fontSize:11,color:isToday?C.yellow:C.white}}>{day.slice(8)}</div>
                     {perfect&&<div style={{...PX,fontSize:7,color:C.orange}}>★</div>}
                     {total>0&&<div style={{...PX,fontSize:7,color:C.dim,marginTop:2}}>{done}/{total}</div>}
+                    {/* Coloured dots: yellow = event, urgency-colour = scheduled task */}
                     <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:4}}>
                       {evts.map(e=><div key={e.id} style={{width:7,height:7,background:C.yellow,opacity:e.done?.35:1}}/>)}
                       {sched.map(s=>{const t=taskMap[s.taskId];return t?<div key={s.id} style={{width:7,height:7,background:UC[t.urgency]||C.blue,opacity:s.done?.35:1}}/>:null;})}
@@ -208,9 +245,11 @@ function CalendarTab({state,setState}){
           </div>
         </div>
       ):(
+        // ── Time-grid views (1D / 3D / 1W) ──
         <>
+          {/* Day column headers with date, perfect-day star, and editable hour cap */}
           <div style={{display:"flex",flexShrink:0,borderBottom:`1px solid ${C.borderDim}`}}>
-            <div style={{width:44,flexShrink:0}}/>
+            <div style={{width:44,flexShrink:0}}/>{/* spacer to align with hour labels */}
             {displayDays.map(day=>{
               const isToday=day===td;
               const cap=state.settings.dayOverrides[day]??state.settings.maxHrsDefault;
@@ -220,6 +259,7 @@ function CalendarTab({state,setState}){
                   <div style={{...PX,fontSize:calView==="1D"?14:calView==="3D"?11:8,color:isToday?C.bg:C.blue,lineHeight:1.8}}>{dayName(day)}</div>
                   <div style={{...PX,fontSize:calView==="1D"?24:calView==="3D"?17:11,color:isToday?C.bg:C.white,lineHeight:1.6}}>{day.slice(8)}</div>
                   {perfect&&<div style={{...PX,fontSize:8,color:isToday?C.bg:C.orange}}>★ PERFECT</div>}
+                  {/* Inline number input when editing; otherwise a tappable label */}
                   {capEdit===day
                     ?<input type="number" defaultValue={cap} min={1} max={16} step={.5} autoFocus
                         style={{...PX,width:"100%",fontSize:9,padding:"2px",background:C.bg,color:C.white,border:`1px solid ${C.orange}`}}
@@ -234,6 +274,7 @@ function CalendarTab({state,setState}){
             })}
           </div>
 
+          {/* Scrollable time grid: hour labels on the left, DayCol for each day */}
           <div style={{flex:1,overflowY:"auto"}}>
             <div style={{display:"flex",height:HOURS.length*HOUR_H}}>
               <div style={{width:44,flexShrink:0,position:"relative"}}>
@@ -249,6 +290,7 @@ function CalendarTab({state,setState}){
         </>
       )}
 
+      {/* ── Appointment modals ── */}
       {modal?.type==="addEvt"&&<Modal title="+ ADD APPOINTMENT" onClose={()=>setModal(null)}><EventForm onSave={d=>saveEvt(d,null)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.type==="editEvt"&&(
         <Modal title="EDIT APPOINTMENT" onClose={()=>setModal(null)}>
