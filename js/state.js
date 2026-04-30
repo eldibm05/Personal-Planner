@@ -26,6 +26,7 @@ const defaultState = () => ({
   settings:{workStart:9*60,workEnd:21*60,maxHrsDefault:6,dayOverrides:{}},
   weekAnchor:today(), // the date the calendar / navigation is centred on
   prayerTimesCache:{}, // keyed by YYYY-MM-DD → { Fajr, Dhuhr, Asr, Maghrib, Isha }
+  islamicDone:{},      // keyed by block id (e.g. "isl_fajr_2026-04-30") → bool
 });
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ function loadState(){
     const s=localStorage.getItem("arcadePlannerV1");
     const loaded=s?JSON.parse(s):defaultState();
     if(!loaded.prayerTimesCache)loaded.prayerTimesCache={};
+    if(!loaded.islamicDone)loaded.islamicDone={};
     return loaded;
   }catch{return defaultState();}
 }

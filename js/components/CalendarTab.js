@@ -71,6 +71,16 @@ function CalendarTab({state,setState}){
     }); playBeep("done");
   };
 
+  // Toggle done state for a locked Islamic block (stored by block id in islamicDone)
+  const toggleIslamic=(id,day)=>{
+    setState(prev=>{
+      const s=JSON.parse(JSON.stringify(prev));
+      if(!s.islamicDone)s.islamicDone={};
+      s.islamicDone[id]=!s.islamicDone[id];
+      checkPerfect(s,day); return s;
+    }); playBeep("done");
+  };
+
   // Add or update a calendar appointment (event). Triggers a reschedule so the
   // scheduler can fill any gap left by a changed event.
   const saveEvt=(data,editId)=>{
@@ -193,18 +203,23 @@ function CalendarTab({state,setState}){
         {islamicBlocks.map(blk=>{
           const rawTop=minToY(blk.startMin);
           const pixH=(blk.duration/60)*HOUR_H;
-          // Skip blocks that end entirely above the visible grid
           if(rawTop+pixH<=0)return null;
           const top=Math.max(0,rawTop);
           const overflow=rawTop<0?Math.abs(rawTop):0;
-          // Same min-height as regular blocks so the ☽ symbol and title are never clipped
           const ht=Math.max(chkDim+8,pixH-overflow);
+          const done=!!(state.islamicDone||{})[blk.id];
           return(
             <div key={blk.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${ISL_GREEN}28`,borderLeft:`4px solid ${ISL_GREEN}`,overflow:"hidden",zIndex:3,cursor:"default",userSelect:"none"}}>
               <div style={{display:"flex",gap,padding:pad,alignItems:"flex-start"}}>
-                <div style={{...PX,fontSize:timeSz+2,color:ISL_GREEN,flexShrink:0,marginTop:1,lineHeight:1}}>☽</div>
+                {/* Clickable done checkbox — green theme, same layout as regular blocks */}
+                <div onClick={()=>toggleIslamic(blk.id,day)} style={{width:chkDim,height:chkDim,border:`2px solid ${ISL_GREEN}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:chkDim-6,color:done?C.bg:ISL_GREEN,background:done?ISL_GREEN:"transparent",cursor:"pointer",flexShrink:0,marginTop:2}}>
+                  {done?"✓":""}
+                </div>
                 <div>
-                  <div style={{...PX,fontSize:titleSz,color:ISL_GREEN,lineHeight:lh}}>{blk.title}</div>
+                  {/* ☽ rendered in system font so the glyph always displays correctly */}
+                  <div style={{...PX,fontSize:titleSz,color:ISL_GREEN,lineHeight:lh,textDecoration:done?"line-through":"none"}}>
+                    <span style={{fontFamily:"serif",marginRight:4}}>☽</span>{blk.title}
+                  </div>
                   <div style={{...PX,fontSize:timeSz,color:`${ISL_GREEN}bb`,lineHeight:lh,marginTop:2}}>{minToTime(blk.startMin)} · {blk.duration}m</div>
                 </div>
               </div>
