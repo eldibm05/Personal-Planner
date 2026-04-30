@@ -25,12 +25,20 @@ const defaultState = () => ({
   completionLog:{}, // keyed by YYYY-MM-DD, value: { perfect: bool }
   settings:{workStart:9*60,workEnd:21*60,maxHrsDefault:6,dayOverrides:{}},
   weekAnchor:today(), // the date the calendar / navigation is centred on
+  prayerTimesCache:{}, // keyed by YYYY-MM-DD → { Fajr, Dhuhr, Asr, Maghrib, Isha }
 });
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 // Reads state from localStorage. Falls back to defaultState() if nothing is
 // stored or the stored JSON is corrupted.
-function loadState(){try{const s=localStorage.getItem("arcadePlannerV1");return s?JSON.parse(s):defaultState();}catch{return defaultState();}}
+function loadState(){
+  try{
+    const s=localStorage.getItem("arcadePlannerV1");
+    const loaded=s?JSON.parse(s):defaultState();
+    if(!loaded.prayerTimesCache)loaded.prayerTimesCache={};
+    return loaded;
+  }catch{return defaultState();}
+}
 
 // Serialises the full state object to localStorage on every change.
 function saveState(s){try{localStorage.setItem("arcadePlannerV1",JSON.stringify(s));}catch{}}

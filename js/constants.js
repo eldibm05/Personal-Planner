@@ -22,8 +22,9 @@ const UC = ["",C.dim,C.blue,C.green,C.orange,C.red];
 // Allowed recurrence frequencies for recurring tasks
 const FREQS = ["daily","weekdays","weekly"];
 
-// Calendar layout: pixel height per hour row, visible hour range (9 AM – 9 PM)
-const HOUR_H = 72, CAL_S = 9, CAL_E = 21;
+// Calendar layout: pixel height per hour row, visible hour range (4 AM – 11 PM)
+// Starting at 4 AM lets Fajr and early-morning Islamic blocks always be visible.
+const HOUR_H = 72, CAL_S = 4, CAL_E = 23;
 
 // Array of hour numbers to render as rows in the calendar grid
 const HOURS = Array.from({length:CAL_E-CAL_S},(_,i)=>CAL_S+i);

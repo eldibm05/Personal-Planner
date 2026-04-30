@@ -24,6 +24,14 @@ function App(){
     if("Notification"in window&&Notification.permission==="default")Notification.requestPermission();
   },[authed]);
 
+  // Prefetch Calgary prayer times for the visible week whenever the week changes.
+  // prefetchWeekPrayerTimes() only hits the API for days not already in the cache.
+  useEffect(()=>{
+    if(!authed)return;
+    const days=weekDates(state.weekAnchor);
+    prefetchWeekPrayerTimes(days,state.prayerTimesCache||{},setState);
+  },[authed,state.weekAnchor]);
+
   // Show the lock screen until authenticated
   if(!authed) return <LoginScreen onUnlock={()=>setAuthed(true)}/>;
 

@@ -8,7 +8,17 @@ function CalendarTab({state,setState}){
   const[modal,setModal]=useState(null);
   const[capEdit,setCapEdit]=useState(null); // which day header is showing the cap editor
   const[calView,setCalView]=useState("1W"); // "1D" | "3D" | "1W" | "1M"
+  const scrollRef=useRef(null);
   const td=today();
+
+  // Scroll the time grid to ~1 hour before now (min 9 AM) whenever the view changes
+  useEffect(()=>{
+    if(scrollRef.current){
+      const nowMin=new Date().getHours()*60+new Date().getMinutes();
+      const targetMin=Math.max(9*60,nowMin-60);
+      scrollRef.current.scrollTop=((targetMin-CAL_S*60)/60)*HOUR_H;
+    }
+  },[calView]);
 
   // Compute the list of dates to display based on the current view.
   // 1M builds every calendar day in the anchor's month.
@@ -94,9 +104,12 @@ function CalendarTab({state,setState}){
     if(Notification.permission==="default")Notification.requestPermission();
     const timers=[];
     const nowMs=Date.now();
+    const cache=state.prayerTimesCache||{};
+    const islamicToday=buildIslamicBlocks(td,cache[td]);
     const items=[
       ...state.events.filter(e=>e.date===td&&!e.done).map(e=>({name:e.title,startMin:t24Min(e.startTime),dur:e.duration})),
       ...state.schedule.filter(s=>s.date===td&&!s.done).map(s=>({name:taskMap[s.taskId]?.title||"Task",startMin:s.startMin,dur:s.duration})),
+      ...islamicToday.map(b=>({name:"☽ "+b.title,startMin:b.startMin,dur:b.duration})),
     ].sort((a,b)=>a.startMin-b.startMin);
     items.forEach((item,i)=>{
       const base=new Date(td+"T00:00:00").getTime();
@@ -111,18 +124,22 @@ function CalendarTab({state,setState}){
       },st-nowMs));
     });
     return()=>timers.forEach(clearTimeout);
-  },[state.schedule,state.events]);
+  },[state.schedule,state.events,state.prayerTimesCache]);
 
   // Convert an absolute minute-of-day to a CSS top offset in the scrollable grid.
   // CAL_S is the grid's start hour; HOUR_H is the pixel height of one hour row.
   const minToY=m=>((m-CAL_S*60)/60)*HOUR_H;
 
+  // Islamic green — distinct from the urgency palette
+  const ISL_GREEN="#2aaa44";
+
   // ── DayCol ──────────────────────────────────────────────────────────────────
-  // Renders one vertical column (events + scheduled tasks) for a single day.
-  // Font and checkbox sizes scale with the active view so 1D is most readable.
+  // Renders one vertical column (events + scheduled tasks + Islamic blocks) for
+  // a single day. Font and checkbox sizes scale with the active view.
   const DayCol=({day,calView})=>{
     const evts=state.events.filter(e=>e.date===day);
     const sched=state.schedule.filter(s=>s.date===day);
+    const islamicBlocks=buildIslamicBlocks(day,(state.prayerTimesCache||{})[day]);
     // Scale typography and spacing based on how many columns are visible
     const titleSz=calView==="1D"?17:calView==="3D"?13:8;
     const timeSz =calView==="1D"?13:calView==="3D"?10:7;
@@ -167,6 +184,26 @@ function CalendarTab({state,setState}){
                 <div>
                   <div style={{...PX,fontSize:titleSz,color:col,lineHeight:lh,textDecoration:sc.done?"line-through":"none"}}>{task.title}{task.recurring?" ↻":""}</div>
                   <div style={{...PX,fontSize:timeSz,color:`${col}bb`,lineHeight:lh,marginTop:2}}>{minToTime(sc.startMin)} · {sc.duration}m</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {/* Islamic blocks — green, locked, non-interactive */}
+        {islamicBlocks.map(blk=>{
+          const rawTop=minToY(blk.startMin);
+          const top=Math.max(0,rawTop);
+          // If the block starts before the grid top, shrink height proportionally
+          const overflow=rawTop<0?Math.abs(rawTop):0;
+          const ht=Math.max(0,(blk.duration/60)*HOUR_H-overflow);
+          if(ht<=0)return null;
+          return(
+            <div key={blk.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${ISL_GREEN}28`,borderLeft:`4px solid ${ISL_GREEN}`,overflow:"hidden",zIndex:3,cursor:"default",userSelect:"none"}}>
+              <div style={{display:"flex",gap,padding:pad,alignItems:"flex-start"}}>
+                <div style={{...PX,fontSize:timeSz+2,color:ISL_GREEN,flexShrink:0,marginTop:1,lineHeight:1}}>☽</div>
+                <div>
+                  <div style={{...PX,fontSize:titleSz,color:ISL_GREEN,lineHeight:lh}}>{blk.title}</div>
+                  <div style={{...PX,fontSize:timeSz,color:`${ISL_GREEN}bb`,lineHeight:lh,marginTop:2}}>{minToTime(blk.startMin)} · {blk.duration}m</div>
                 </div>
               </div>
             </div>
@@ -223,6 +260,7 @@ function CalendarTab({state,setState}){
                 const isToday=day===td;
                 const evts=state.events.filter(e=>e.date===day);
                 const sched=state.schedule.filter(s=>s.date===day);
+                const hasIslamic=(state.prayerTimesCache||{})[day]!=null;
                 const total=evts.length+sched.length;
                 const done=evts.filter(e=>e.done).length+sched.filter(s=>s.done).length;
                 const perfect=state.completionLog[day]?.perfect;
@@ -233,10 +271,11 @@ function CalendarTab({state,setState}){
                     <div style={{...PX,fontSize:11,color:isToday?C.yellow:C.white}}>{day.slice(8)}</div>
                     {perfect&&<div style={{...PX,fontSize:7,color:C.orange}}>★</div>}
                     {total>0&&<div style={{...PX,fontSize:7,color:C.dim,marginTop:2}}>{done}/{total}</div>}
-                    {/* Coloured dots: yellow = event, urgency-colour = scheduled task */}
+                    {/* Coloured dots: yellow = event, urgency-colour = task, green = Islamic */}
                     <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:4}}>
                       {evts.map(e=><div key={e.id} style={{width:7,height:7,background:C.yellow,opacity:e.done?.35:1}}/>)}
                       {sched.map(s=>{const t=taskMap[s.taskId];return t?<div key={s.id} style={{width:7,height:7,background:UC[t.urgency]||C.blue,opacity:s.done?.35:1}}/>:null;})}
+                      {hasIslamic&&<div style={{width:7,height:7,background:"#2aaa44"}}/>}
                     </div>
                   </div>
                 );
@@ -275,7 +314,7 @@ function CalendarTab({state,setState}){
           </div>
 
           {/* Scrollable time grid: hour labels on the left, DayCol for each day */}
-          <div style={{flex:1,overflowY:"auto"}}>
+          <div ref={scrollRef} style={{flex:1,overflowY:"auto"}}>
             <div style={{display:"flex",height:HOURS.length*HOUR_H}}>
               <div style={{width:44,flexShrink:0,position:"relative"}}>
                 {HOURS.map(h=>(

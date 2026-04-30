@@ -16,10 +16,12 @@ function NowBar({state}){
   const nowMin=new Date().getHours()*60+new Date().getMinutes();
   const td=today();
 
-  // Merge today's events and scheduled tasks into one time-sorted list
+  // Merge today's events, scheduled tasks, and Islamic blocks into one time-sorted list
+  const islamicToday=buildIslamicBlocks(td,(state.prayerTimesCache||{})[td]);
   const items=[
     ...state.events.filter(e=>e.date===td&&!e.done).map(e=>({name:e.title,start:t24Min(e.startTime),dur:e.duration})),
     ...state.schedule.filter(s=>s.date===td&&!s.done).map(s=>({name:taskMap[s.taskId]?.title||"Task",start:s.startMin,dur:s.duration})),
+    ...islamicToday.map(b=>({name:"☽ "+b.title,start:b.startMin,dur:b.duration})),
   ].sort((a,b)=>a.start-b.start);
 
   const cur=items.find(i=>i.start<=nowMin&&nowMin<i.start+i.dur); // currently active item

@@ -21,14 +21,20 @@ function findFreeSlot(day,dur,evtBlocks,existing,settings){
 // Rebuilds the entire schedule for the current week anchor.
 // Called whenever tasks, events, settings, or the week anchor change.
 function autoSchedule(state){
-  const{projects,standaloneTasks,events,settings,weekAnchor}=state;
+  const{projects,standaloneTasks,events,settings,weekAnchor,prayerTimesCache={}}=state;
   const days=weekDates(weekAnchor);
   const allTasks=[...standaloneTasks,...projects.flatMap(p=>p.tasks)];
 
-  // Pre-compute which event blocks fall on each day of the week
+  // Pre-compute which event blocks fall on each day of the week.
+  // Islamic blocks are added as hard blockers so regular tasks never overlap them.
   const evtBlocks={};
   days.forEach(d=>{evtBlocks[d]=[];});
   events.forEach(e=>{if(evtBlocks[e.date]!==undefined)evtBlocks[e.date].push({start:t24Min(e.startTime),end:t24Min(e.startTime)+e.duration});});
+  days.forEach(d=>{
+    buildIslamicBlocks(d,prayerTimesCache[d]).forEach(b=>{
+      evtBlocks[d].push({start:b.startMin,end:b.startMin+b.duration});
+    });
+  });
 
   const td=today();
 
