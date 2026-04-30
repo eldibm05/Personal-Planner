@@ -192,11 +192,13 @@ function CalendarTab({state,setState}){
         {/* Islamic blocks — green, locked, non-interactive */}
         {islamicBlocks.map(blk=>{
           const rawTop=minToY(blk.startMin);
+          const pixH=(blk.duration/60)*HOUR_H;
+          // Skip blocks that end entirely above the visible grid
+          if(rawTop+pixH<=0)return null;
           const top=Math.max(0,rawTop);
-          // If the block starts before the grid top, shrink height proportionally
           const overflow=rawTop<0?Math.abs(rawTop):0;
-          const ht=Math.max(0,(blk.duration/60)*HOUR_H-overflow);
-          if(ht<=0)return null;
+          // Same min-height as regular blocks so the ☽ symbol and title are never clipped
+          const ht=Math.max(chkDim+8,pixH-overflow);
           return(
             <div key={blk.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${ISL_GREEN}28`,borderLeft:`4px solid ${ISL_GREEN}`,overflow:"hidden",zIndex:3,cursor:"default",userSelect:"none"}}>
               <div style={{display:"flex",gap,padding:pad,alignItems:"flex-start"}}>

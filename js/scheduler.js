@@ -72,7 +72,10 @@ function autoSchedule(state){
       if(task.freq==="weekly"&&dow!==1)continue;              // weekly = Monday only
       const max=(settings.dayOverrides[day]??settings.maxHrsDefault)*60;
       if(used[day]+task.duration>max)continue;
-      const slot=findFreeSlot(day,task.duration,evtBlocks[day],sched,settings);
+      // If the task has a pinned time, start searching from that minute;
+      // otherwise fall back to the normal workStart.
+      const pinSettings=task.pinnedTime?{...settings,workStart:t24Min(task.pinnedTime)}:settings;
+      const slot=findFreeSlot(day,task.duration,evtBlocks[day],sched,pinSettings);
       if(slot!==null){
         sched.push({id:uid(),taskId:task.id,date:day,startMin:slot,duration:task.duration,done:false,type:"recurring"});
         used[day]+=task.duration;

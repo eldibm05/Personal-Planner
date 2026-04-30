@@ -6,7 +6,7 @@
 // Used for both standalone tasks and project tasks.
 // init allows pre-filling fields when editing an existing task.
 function TaskForm({init={},onSave,onClose}){
-  const[f,setF]=useState({title:"",duration:30,urgency:2,difficulty:2,dueDate:"",recurring:false,freq:"daily",...init});
+  const[f,setF]=useState({title:"",duration:30,urgency:2,difficulty:2,dueDate:"",recurring:false,freq:"daily",pinnedTime:"",...init});
   const s=(k,v)=>setF(p=>({...p,[k]:v})); // helper to update a single field
   return(
     <div>
@@ -39,8 +39,13 @@ function TaskForm({init={},onSave,onClose}){
         </label>
       </Lbl>
 
-      {/* Frequency picker only shown when recurring is checked */}
-      {f.recurring&&<Lbl t="FREQUENCY"><Sel value={f.freq} onChange={e=>s("freq",e.target.value)} opts={FREQS}/></Lbl>}
+      {/* Frequency and optional pinned time — only shown when recurring is checked */}
+      {f.recurring&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <Lbl t="FREQUENCY"><Sel value={f.freq} onChange={e=>s("freq",e.target.value)} opts={FREQS}/></Lbl>
+          <Lbl t="FIXED TIME (OPT)"><Inp type="time" value={f.pinnedTime||""} onChange={e=>s("pinnedTime",e.target.value)}/></Lbl>
+        </div>
+      )}
 
       <div style={{display:"flex",gap:8,marginTop:12}}>
         <Btn onClick={()=>{if(f.title){onSave(f);playBeep("done");}}} bg={C.green}>SAVE</Btn>
