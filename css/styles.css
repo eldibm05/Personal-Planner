@@ -1,0 +1,8 @@
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body,#root{height:100%;background:#080808;}
+body{font-family:'Press Start 2P',monospace;color:#ddddcc;overflow:hidden;line-height:1.8;}
+::-webkit-scrollbar{width:5px;background:#080808;}
+::-webkit-scrollbar-thumb{background:#4466cc;}
+@keyframes blink{50%{opacity:0;}}
+input[type=range]{accent-color:#4466cc;cursor:pointer;}
+input,select,button{font-family:'Press Start 2P',monospace;}
