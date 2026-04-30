@@ -9,7 +9,7 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   html,body,#root{height:100%;background:#080808;}
-  body{font-family:'Press Start 2P',monospace;color:#ddddcc;overflow:hidden;}
+  body{font-family:'Press Start 2P',monospace;color:#ddddcc;overflow:hidden;line-height:1.8;}
   ::-webkit-scrollbar{width:5px;background:#080808;}
   ::-webkit-scrollbar-thumb{background:#4466cc;}
   @keyframes blink{50%{opacity:0;}}
@@ -164,7 +164,7 @@ function Modal({title,onClose,children}){
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:12}}>
       <div style={{background:C.bg2,border:`3px solid ${C.blue}`,maxWidth:440,width:"100%",maxHeight:"88vh",overflowY:"auto"}}>
         <div style={{background:C.red,padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{...PX,fontSize:11,color:C.yellow}}>{title}</span>
+          <span style={{...PX,fontSize:14,color:C.yellow,lineHeight:1.8}}>{title}</span>
           <button onClick={onClose} style={{...PX,background:"none",border:"none",color:C.yellow,fontSize:16,cursor:"pointer"}}>✕</button>
         </div>
         <div style={{padding:14}}>{children}</div>
@@ -319,7 +319,7 @@ function ProjectsTab({state,setState}){
     <div style={{padding:14,overflowY:"auto",height:"100%"}}>
       <div style={{marginBottom:18}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{...PX,fontSize:11,color:C.yellow}}>▸ STANDALONE TASKS</span>
+          <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>▸ STANDALONE TASKS</span>
           <Btn onClick={()=>setModal({type:"addTask",pid:null})} bg={C.blue} sx={{fontSize:9,padding:"5px 9px"}}>+ ADD TASK</Btn>
         </div>
         {state.standaloneTasks.length===0&&<div style={{...PX,fontSize:9,color:C.dim,padding:"8px 0"}}>NO TASKS YET. PRESS + ADD TASK TO START.</div>}
@@ -327,7 +327,7 @@ function ProjectsTab({state,setState}){
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{...PX,fontSize:11,color:C.yellow}}>▸ PROJECTS</span>
+        <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>▸ PROJECTS</span>
         <Btn onClick={()=>setModal({type:"addProject"})} bg={C.red} tc={C.yellow} sx={{fontSize:9,padding:"5px 9px"}}>+ NEW PROJECT</Btn>
       </div>
 
@@ -337,7 +337,7 @@ function ProjectsTab({state,setState}){
           <div key={proj.id} style={{marginBottom:16,border:`2px solid ${proj.color}22`,background:C.bg2}}>
             <div style={{background:proj.color,padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
-                <span style={{...PX,fontSize:11,color:C.yellow}}>{proj.name}</span>
+                <span style={{...PX,fontSize:15,color:C.yellow,lineHeight:1.8}}>{proj.name}</span>
                 {proj.dueDate&&<span style={{...PX,fontSize:8,color:`${C.yellow}cc`,marginLeft:10}}>DUE {fmtDate(proj.dueDate)}</span>}
               </div>
               <div style={{display:"flex",gap:5,alignItems:"center"}}>
@@ -466,24 +466,31 @@ function CalendarTab({state,setState}){
 
   const minToY=m=>((m-CAL_S*60)/60)*HOUR_H;
 
-  const DayCol=({day})=>{
+  const DayCol=({day,calView})=>{
     const evts=state.events.filter(e=>e.date===day);
     const sched=state.schedule.filter(s=>s.date===day);
+    // Font/size scales per view
+    const titleSz=calView==="1D"?17:calView==="3D"?13:8;
+    const timeSz =calView==="1D"?13:calView==="3D"?10:7;
+    const chkDim =calView==="1D"?22:calView==="3D"?18:11;
+    const pad    =calView==="1D"?"10px 12px":calView==="3D"?"6px 8px":"3px 4px";
+    const gap    =calView==="1D"?10:calView==="3D"?7:3;
+    const lh     =calView==="1D"?2:calView==="3D"?1.9:1.6;
     return(
       <div style={{flex:1,minWidth:0,borderLeft:`1px solid ${C.borderDim}`,position:"relative"}}>
         {HOURS.map(h=><div key={h} style={{position:"absolute",top:(h-CAL_S)*HOUR_H,left:0,right:0,height:HOUR_H,borderBottom:`1px solid ${C.dimmer}`}}/>)}
         {evts.map(evt=>{
           const top=minToY(t24Min(evt.startTime));
-          const ht=Math.max(24,(evt.duration/60)*HOUR_H);
+          const ht=Math.max(chkDim+8,(evt.duration/60)*HOUR_H);
           return(
-            <div key={evt.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${C.yellow}18`,borderLeft:`3px solid ${C.yellow}`,overflow:"hidden",zIndex:2,cursor:"pointer"}} onClick={()=>setModal({type:"editEvt",evt})}>
-              <div style={{display:"flex",gap:3,padding:"3px 4px",alignItems:"flex-start"}}>
-                <div onClick={e=>{e.stopPropagation();toggle("event",evt.id,day);}} style={{width:11,height:11,border:`1px solid ${C.yellow}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:evt.done?C.bg:C.yellow,background:evt.done?C.yellow:"transparent",cursor:"pointer",flexShrink:0,marginTop:1}}>
+            <div key={evt.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${C.yellow}18`,borderLeft:`4px solid ${C.yellow}`,overflow:"hidden",zIndex:2,cursor:"pointer"}} onClick={()=>setModal({type:"editEvt",evt})}>
+              <div style={{display:"flex",gap,padding:pad,alignItems:"flex-start"}}>
+                <div onClick={e=>{e.stopPropagation();toggle("event",evt.id,day);}} style={{width:chkDim,height:chkDim,border:`2px solid ${C.yellow}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:chkDim-6,color:evt.done?C.bg:C.yellow,background:evt.done?C.yellow:"transparent",cursor:"pointer",flexShrink:0,marginTop:2}}>
                   {evt.done?"✓":""}
                 </div>
                 <div>
-                  <div style={{...PX,fontSize:8,color:C.yellow,lineHeight:1.6,textDecoration:evt.done?"line-through":"none"}}>{evt.title}</div>
-                  <div style={{...PX,fontSize:7,color:`${C.yellow}88`}}>{evt.startTime} · {evt.duration}m</div>
+                  <div style={{...PX,fontSize:titleSz,color:C.yellow,lineHeight:lh,textDecoration:evt.done?"line-through":"none"}}>{evt.title}</div>
+                  <div style={{...PX,fontSize:timeSz,color:`${C.yellow}bb`,lineHeight:lh,marginTop:2}}>{evt.startTime} · {evt.duration}m</div>
                 </div>
               </div>
             </div>
@@ -493,16 +500,16 @@ function CalendarTab({state,setState}){
           const task=taskMap[sc.taskId]; if(!task)return null;
           const col=UC[task.urgency];
           const top=minToY(sc.startMin);
-          const ht=Math.max(24,(sc.duration/60)*HOUR_H);
+          const ht=Math.max(chkDim+8,(sc.duration/60)*HOUR_H);
           return(
-            <div key={sc.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${col}18`,borderLeft:`3px solid ${col}`,overflow:"hidden",zIndex:1}}>
-              <div style={{display:"flex",gap:3,padding:"3px 4px",alignItems:"flex-start"}}>
-                <div onClick={()=>toggle("scheduled",sc.id,day)} style={{width:11,height:11,border:`1px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:sc.done?C.bg:col,background:sc.done?col:"transparent",cursor:"pointer",flexShrink:0,marginTop:1}}>
+            <div key={sc.id} style={{position:"absolute",top,left:2,right:2,height:ht,background:`${col}18`,borderLeft:`4px solid ${col}`,overflow:"hidden",zIndex:1}}>
+              <div style={{display:"flex",gap,padding:pad,alignItems:"flex-start"}}>
+                <div onClick={()=>toggle("scheduled",sc.id,day)} style={{width:chkDim,height:chkDim,border:`2px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:chkDim-6,color:sc.done?C.bg:col,background:sc.done?col:"transparent",cursor:"pointer",flexShrink:0,marginTop:2}}>
                   {sc.done?"✓":""}
                 </div>
                 <div>
-                  <div style={{...PX,fontSize:8,color:col,lineHeight:1.6,textDecoration:sc.done?"line-through":"none"}}>{task.title}{task.recurring?" ↻":""}</div>
-                  <div style={{...PX,fontSize:7,color:`${col}88`}}>{minToTime(sc.startMin)} · {sc.duration}m</div>
+                  <div style={{...PX,fontSize:titleSz,color:col,lineHeight:lh,textDecoration:sc.done?"line-through":"none"}}>{task.title}{task.recurring?" ↻":""}</div>
+                  <div style={{...PX,fontSize:timeSz,color:`${col}bb`,lineHeight:lh,marginTop:2}}>{minToTime(sc.startMin)} · {sc.duration}m</div>
                 </div>
               </div>
             </div>
@@ -586,9 +593,9 @@ function CalendarTab({state,setState}){
               const cap=state.settings.dayOverrides[day]??state.settings.maxHrsDefault;
               const perfect=state.completionLog[day]?.perfect;
               return(
-                <div key={day} style={{flex:1,textAlign:"center",padding:"4px 1px",background:isToday?C.yellow:C.bg2,borderLeft:`1px solid ${C.borderDim}`}}>
-                  <div style={{...PX,fontSize:8,color:isToday?C.bg:C.blue}}>{dayName(day)}</div>
-                  <div style={{...PX,fontSize:11,color:isToday?C.bg:C.white}}>{day.slice(8)}</div>
+                <div key={day} style={{flex:1,textAlign:"center",padding:calView==="1D"?"8px 4px":"4px 1px",background:isToday?C.yellow:C.bg2,borderLeft:`1px solid ${C.borderDim}`}}>
+                  <div style={{...PX,fontSize:calView==="1D"?14:calView==="3D"?11:8,color:isToday?C.bg:C.blue,lineHeight:1.8}}>{dayName(day)}</div>
+                  <div style={{...PX,fontSize:calView==="1D"?24:calView==="3D"?17:11,color:isToday?C.bg:C.white,lineHeight:1.6}}>{day.slice(8)}</div>
                   {perfect&&<div style={{...PX,fontSize:8,color:isToday?C.bg:C.orange}}>★ PERFECT</div>}
                   {capEdit===day
                     ?<input type="number" defaultValue={cap} min={1} max={16} step={.5} autoFocus
@@ -609,12 +616,12 @@ function CalendarTab({state,setState}){
             <div style={{display:"flex",height:HOURS.length*HOUR_H}}>
               <div style={{width:44,flexShrink:0,position:"relative"}}>
                 {HOURS.map(h=>(
-                  <div key={h} style={{...PX,position:"absolute",top:(h-CAL_S)*HOUR_H-8,right:4,fontSize:8,color:C.dim,textAlign:"right"}}>
+                  <div key={h} style={{...PX,position:"absolute",top:(h-CAL_S)*HOUR_H-10,right:6,fontSize:10,color:C.dim,textAlign:"right",lineHeight:1.8}}>
                     {h>12?`${h-12}PM`:h===12?"12PM":`${h}AM`}
                   </div>
                 ))}
               </div>
-              {displayDays.map(day=><DayCol key={day} day={day}/>)}
+              {displayDays.map(day=><DayCol key={day} day={day} calView={calView}/>)}
             </div>
           </div>
         </>
@@ -666,7 +673,7 @@ function AnalyticsTab({state}){
       </div>
 
       <div style={{marginBottom:18}}>
-        <div style={{...PX,fontSize:10,color:C.yellow,marginBottom:10}}>▸ WEEKLY COMPLETION</div>
+        <div style={{...PX,fontSize:14,color:C.yellow,marginBottom:12,lineHeight:1.8}}>▸ WEEKLY COMPLETION</div>
         {weeks.map(w=>(
           <div key={w.label} style={{marginBottom:8}}>
             <div style={{display:"flex",justifyContent:"space-between",...PX,fontSize:8,color:C.dim,marginBottom:3}}>
@@ -682,7 +689,7 @@ function AnalyticsTab({state}){
 
       {state.projects.length>0&&(
         <div style={{marginBottom:18}}>
-          <div style={{...PX,fontSize:10,color:C.yellow,marginBottom:10}}>▸ PROJECT PROGRESS</div>
+          <div style={{...PX,fontSize:14,color:C.yellow,marginBottom:12,lineHeight:1.8}}>▸ PROJECT PROGRESS</div>
           {state.projects.map(p=>{
             const done=p.tasks.filter(t=>t.done).length;
             const pct=p.tasks.length?Math.round(done/p.tasks.length*100):0;
@@ -699,7 +706,7 @@ function AnalyticsTab({state}){
       )}
 
       <div style={{marginBottom:18}}>
-        <div style={{...PX,fontSize:10,color:C.yellow,marginBottom:10}}>▸ OPEN TASKS BY URGENCY</div>
+        <div style={{...PX,fontSize:14,color:C.yellow,marginBottom:12,lineHeight:1.8}}>▸ OPEN TASKS BY URGENCY</div>
         <div style={{display:"flex",gap:5,alignItems:"flex-end",height:90}}>
           {openByU.map(({u,count})=>(
             <div key={u} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
@@ -846,12 +853,12 @@ function App(){
       {/* Header / nav */}
       <div style={{background:C.bg2,borderBottom:`3px solid ${C.blue}`,padding:"8px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
         <div>
-          <div style={{...PX,fontSize:16,color:C.red,letterSpacing:4}}>ARCADE</div>
-          <div style={{...PX,fontSize:9,color:C.yellow,letterSpacing:2,marginTop:2}}>PLANNER v1.0</div>
+          <div style={{...PX,fontSize:22,color:C.red,letterSpacing:4,lineHeight:1.6}}>ARCADE</div>
+          <div style={{...PX,fontSize:12,color:C.yellow,letterSpacing:2,marginTop:2,lineHeight:1.6}}>PLANNER v1.0</div>
         </div>
         <div style={{display:"flex"}}>
           {TABS.map(t=>(
-            <button key={t} onClick={()=>setTab(t)} style={{...PX,background:tab===t?C.red:"transparent",color:tab===t?C.yellow:C.dim,border:`2px solid ${tab===t?C.red:C.dimmer}`,fontSize:10,padding:"7px 13px",cursor:"pointer"}}>
+            <button key={t} onClick={()=>setTab(t)} style={{...PX,background:tab===t?C.red:"transparent",color:tab===t?C.yellow:C.dim,border:`2px solid ${tab===t?C.red:C.dimmer}`,fontSize:13,padding:"9px 16px",cursor:"pointer"}}>
               {t}
             </button>
           ))}
